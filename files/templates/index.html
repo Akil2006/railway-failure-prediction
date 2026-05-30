@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Railway Equipment Failure Prediction</title>
+
+  <!-- Google Fonts: Syne (display) + DM Mono (data/numbers) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+
+  <link rel="stylesheet" href="/static/style.css"/>
+</head>
+<body>
+
+  <!-- ═══════════════════════════  HEADER  ═══════════════════════════════ -->
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">⬡</span>
+        <div>
+          <span class="logo-title">RailSense</span>
+          <span class="logo-sub">Deep Learning Diagnostics</span>
+        </div>
+      </div>
+      <div class="header-badge">LSTM × GRU</div>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════  HERO  ═════════════════════════════════ -->
+  <section class="hero">
+    <h1 class="hero-title">
+      Equipment<br/>
+      <em>Failure Prediction</em>
+    </h1>
+    <p class="hero-desc">
+      Enter live sensor readings from your railway equipment below.
+      Both LSTM and GRU models will analyse the data and return a
+      combined failure verdict in real time.
+    </p>
+  </section>
+
+  <!-- ═══════════════════════════  MAIN LAYOUT  ═══════════════════════════ -->
+  <main class="layout">
+
+    <!-- ──────────────  INPUT PANEL  ────────────── -->
+    <section class="card panel-input">
+      <h2 class="card-title">
+        <span class="step-num">01</span> Sensor Readings
+      </h2>
+      <p class="card-hint">All fields are required. Values must be numeric.</p>
+
+      <!--
+        We use a <div> form (no <form> tag) so JavaScript controls submission
+        entirely — preventing default page reload and giving us full control.
+      -->
+      <div class="sensor-form" id="sensorForm">
+
+        <!-- Air Temperature -->
+        <div class="field-group">
+          <label for="air_temperature">
+            Air Temperature
+            <span class="unit">K</span>
+          </label>
+          <input
+            type="number" id="air_temperature" step="0.1"
+            placeholder="e.g. 298.1"
+            min="250" max="400"
+            aria-describedby="air_temperature_hint"
+          />
+          <span class="field-hint" id="air_temperature_hint">Typical range: 295–305 K</span>
+        </div>
+
+        <!-- Process Temperature -->
+        <div class="field-group">
+          <label for="process_temperature">
+            Process Temperature
+            <span class="unit">K</span>
+          </label>
+          <input
+            type="number" id="process_temperature" step="0.1"
+            placeholder="e.g. 308.6"
+            min="300" max="420"
+          />
+          <span class="field-hint">Typical range: 305–315 K</span>
+        </div>
+
+        <!-- Rotational Speed -->
+        <div class="field-group">
+          <label for="rotational_speed">
+            Rotational Speed
+            <span class="unit">RPM</span>
+          </label>
+          <input
+            type="number" id="rotational_speed" step="1"
+            placeholder="e.g. 1551"
+            min="500" max="3000"
+          />
+          <span class="field-hint">Typical range: 1168–2886 RPM</span>
+        </div>
+
+        <!-- Torque -->
+        <div class="field-group">
+          <label for="torque">
+            Torque
+            <span class="unit">Nm</span>
+          </label>
+          <input
+            type="number" id="torque" step="0.1"
+            placeholder="e.g. 42.8"
+            min="1" max="100"
+          />
+          <span class="field-hint">Typical range: 3.8–76.6 Nm</span>
+        </div>
+
+        <!-- Tool Wear -->
+        <div class="field-group">
+          <label for="tool_wear">
+            Tool Wear
+            <span class="unit">min</span>
+          </label>
+          <input
+            type="number" id="tool_wear" step="1"
+            placeholder="e.g. 108"
+            min="0" max="300"
+          />
+          <span class="field-hint">Range: 0–253 min</span>
+        </div>
+
+        <!-- Submit Button -->
+        <button class="btn-predict" id="predictBtn" onclick="runPrediction()">
+          <span class="btn-label">Run Prediction</span>
+          <span class="btn-icon">→</span>
+        </button>
+
+        <!-- Validation error message area -->
+        <div class="alert alert-error hidden" id="errorBox" role="alert"></div>
+      </div>
+    </section>
+
+    <!-- ──────────────  OUTPUT PANEL  ────────────── -->
+    <section class="card panel-output">
+      <h2 class="card-title">
+        <span class="step-num">02</span> Prediction Results
+      </h2>
+
+      <!-- Placeholder shown before first prediction -->
+      <div class="placeholder" id="placeholder">
+        <div class="placeholder-icon">◎</div>
+        <p>Results will appear here after you submit sensor readings.</p>
+      </div>
+
+      <!-- Spinner shown while waiting for API response -->
+      <div class="spinner-wrap hidden" id="spinner">
+        <div class="spinner"></div>
+        <p>Analysing sensor data…</p>
+      </div>
+
+      <!-- Results block — hidden until data arrives -->
+      <div class="results hidden" id="results">
+
+        <!-- Final verdict — the most prominent element -->
+        <div class="verdict" id="verdict">
+          <div class="verdict-icon" id="verdictIcon"></div>
+          <div class="verdict-text">
+            <span class="verdict-label">Final Decision</span>
+            <span class="verdict-value" id="verdictText"></span>
+          </div>
+          <div class="verdict-prob">
+            <span class="prob-label">Avg. Failure Probability</span>
+            <span class="prob-value" id="avgProb"></span>
+          </div>
+        </div>
+
+        <!-- Model comparison table -->
+        <h3 class="compare-title">Model Breakdown</h3>
+        <div class="model-cards">
+
+          <!-- LSTM card -->
+          <div class="model-card" id="lstmCard">
+            <div class="model-header">
+              <span class="model-badge lstm-badge">LSTM</span>
+              <span class="model-name">Long Short-Term Memory</span>
+            </div>
+            <div class="model-stat">
+              <span>Prediction</span>
+              <strong id="lstmLabel">—</strong>
+            </div>
+            <div class="model-stat">
+              <span>Failure Probability</span>
+              <strong id="lstmProb">—</strong>
+            </div>
+            <div class="model-stat">
+              <span>Confidence</span>
+              <strong id="lstmConf">—</strong>
+            </div>
+            <!-- Visual probability bar -->
+            <div class="prob-bar-wrap">
+              <div class="prob-bar" id="lstmBar"></div>
+            </div>
+          </div>
+
+          <!-- GRU card -->
+          <div class="model-card" id="gruCard">
+            <div class="model-header">
+              <span class="model-badge gru-badge">GRU</span>
+              <span class="model-name">Gated Recurrent Unit</span>
+            </div>
+            <div class="model-stat">
+              <span>Prediction</span>
+              <strong id="gruLabel">—</strong>
+            </div>
+            <div class="model-stat">
+              <span>Failure Probability</span>
+              <strong id="gruProb">—</strong>
+            </div>
+            <div class="model-stat">
+              <span>Confidence</span>
+              <strong id="gruConf">—</strong>
+            </div>
+            <div class="prob-bar-wrap">
+              <div class="prob-bar" id="gruBar"></div>
+            </div>
+          </div>
+
+        </div><!-- /model-cards -->
+
+        <!-- Disclaimer -->
+        <p class="disclaimer">
+          ⓘ  This tool is for research and demonstration purposes.
+          Final maintenance decisions should be verified by a qualified engineer.
+        </p>
+      </div><!-- /results -->
+    </section>
+
+  </main><!-- /layout -->
+
+  <!-- ═══════════════════════════  FOOTER  ════════════════════════════════ -->
+  <footer class="site-footer">
+    <p>
+      Final Year Deep Learning Project &nbsp;·&nbsp;
+      Railway Equipment Failure Prediction &nbsp;·&nbsp;
+      LSTM &amp; GRU Models
+    </p>
+  </footer>
+
+  <!-- ═══════════════════════════  JAVASCRIPT  ════════════════════════════ -->
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

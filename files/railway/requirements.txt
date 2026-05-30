@@ -1,0 +1,6 @@
+streamlit
+tensorflow==2.15.0
+numpy
+joblib
+scikit-learn
+h5py

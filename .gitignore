@@ -1,0 +1,20 @@
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Python cache
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# User specific Streamlit config / files (optional)
+.streamlit/config.toml
+
+# Zip files
+*.zip
